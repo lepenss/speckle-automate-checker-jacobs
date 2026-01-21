@@ -26,6 +26,7 @@ import pandas as pd
 from pandas import DataFrame
 from pandas.core.groupby import DataFrameGroupBy
 
+import numpy as np
 
 def process_rule_numbers(df: DataFrame) -> DataFrame:
     """Process rule numbers in a DataFrame while preserving original rule identifiers.
@@ -56,6 +57,8 @@ def process_rule_numbers(df: DataFrame) -> DataFrame:
     # Find indices where Logic is 'WHERE' to identify rule group starts
     where_indices = df[df["Logic"].str.upper() == "WHERE"].index
 
+    print("where_indices = " + str(where_indices))
+
     # Process each group
     for i in range(len(where_indices)):
         start_idx = where_indices[i]
@@ -63,6 +66,8 @@ def process_rule_numbers(df: DataFrame) -> DataFrame:
 
         # Get slice of rows for this group
         group_slice = df.iloc[start_idx:end_idx]
+
+        print("group_slice = " + str(group_slice))
 
         # Try to get rule number from first row, fall back to "Rule #"
         group_rule_num = (
@@ -147,10 +152,13 @@ def read_rules_from_spreadsheet(url: str) -> tuple[DataFrameGroupBy, list[str]] 
         - List of validation messages/warnings
     """
     try:
+        print("url = " + str(url))
         # Read the TSV file
         # The TSV format is chosen for compatibility with Google Sheets
         # and other spreadsheet applications
-        df = pd.read_csv(url, sep="\t")
+        df = pd.read_csv(url, sep=",")
+        df['Rule Number'] = np.nan
+        print(df)
 
         # Convert mixed type columns
         # This handles inconsistencies in spreadsheet data
@@ -163,7 +171,7 @@ def read_rules_from_spreadsheet(url: str) -> tuple[DataFrameGroupBy, list[str]] 
         # Get validation messages
         # These are warnings about potential issues with the rules
         messages = validate_rule_numbers(df)
-
+        
         # Group by rule number
         # This creates a DataFrameGroupBy object that groups related conditions
         grouped_rules = df.groupby("Rule Number")

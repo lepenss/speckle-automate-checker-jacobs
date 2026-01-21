@@ -26,6 +26,7 @@ from src.inputs import MinimumSeverity
 from src.predicates import PREDICATE_METHOD_MAP
 from src.rules import PropertyRules
 
+from helpers import CommentCreator
 
 def validate_rule_structure(rule_group: pd.DataFrame) -> None:
     """Validates the structure and logic of a rule group.
@@ -202,6 +203,7 @@ def process_rule(
         return [], []
 
     try:
+        print("validate_rule_structure")
         validate_rule_structure(rule_group)
     except ValueError as e:
         speckle_print(f"Rule validation error: {str(e)}")
@@ -227,6 +229,21 @@ def process_rule(
             )
         ]
 
+        # print("look in objects")
+        # print("filter_condition = " + str(filter_condition))
+
+        # # for obj in filtered_objects:
+        # #     if "OBJECTS.DATA.DATAOBJECT" in obj.speckle_type.upper():
+        # #         if obj.properties["Layer"] == "Mechanical":
+        # #             print( "found one!!")
+
+        
+        # for obj in filtered_objects:
+        #     print(obj)
+        #     if "Mechanical" in obj.name:
+        #         print( "found one!!")
+
+
         # Early exit if no objects pass filters
         if not filtered_objects:
             return [], []
@@ -236,6 +253,8 @@ def process_rule(
     pass_objects = []
     fail_objects = []
 
+    print(final_check)
+
     for obj in filtered_objects:
         if evaluate_condition(
             speckle_object=obj,
@@ -243,8 +262,12 @@ def process_rule(
             rule_number=rule_number,
             case_number=len(filters),
         ):
+            # print(obj.properties['AutoCad']['Tag'])
+            # print("pass")
             pass_objects.append(obj)
         else:
+            # print(obj.properties['AutoCad']['Tag'])
+            # print("fail")
             fail_objects.append(obj)
 
     return pass_objects, fail_objects
@@ -253,8 +276,11 @@ def process_rule(
 def apply_rules_to_objects(
     speckle_objects: list[Base],
     grouped_rules: DataFrameGroupBy,
-    automate_context: AutomationContext,
-    minimum_severity: MinimumSeverity = MinimumSeverity.INFO,
+    client,
+    project_id,
+    model_id,
+    my_version_id,    
+    minimum_severity: MinimumSeverity = MinimumSeverity.ERROR,
     hide_skipped: bool = False,
 ) -> dict[str, tuple[list[Base], list[Base]]]:
     """Applies rules to objects and updates the automate context results.
@@ -283,8 +309,11 @@ def apply_rules_to_objects(
         MinimumSeverity.ERROR: 2,
     }
     min_severity_level = severity_levels[minimum_severity]
+    min_severity_level = 2
 
     for rule_id, rule_group in grouped_rules:
+        print("rule_id = " + str(rule_id))
+        print("rule_group = " + str(rule_group))
         rule_id_str = str(rule_id)  # Convert rule_id to string
         rules_processed += 1
 
@@ -293,6 +322,7 @@ def apply_rules_to_objects(
             "Report Severity" not in rule_group.columns
             and "Severity" not in rule_group.columns
         ):
+            print("skip 1")
             continue  # Or raise an exception if these columns are mandatory
 
         # Get the severity level for this rule
@@ -304,28 +334,45 @@ def apply_rules_to_objects(
         # Check if the rule severity level meets the minimum severity level
         # no point in processing lower severity rules
         if rule_severity_level < min_severity_level:
+            print("skip 2")
             continue
 
+        print("process rule")
+        print(speckle_objects)
         pass_objects, fail_objects = process_rule(speckle_objects, rule_group)
+        # print("pass_objects= " + str(pass_objects))
+        # print("fail_objects= " + str(fail_objects))
+        
 
-        # For passing objects, only attach if we're showing all levels (INFO)
-        if minimum_severity == MinimumSeverity.INFO:
-            attach_results(
-                pass_objects,
-                rule_group.iloc[-1],
-                rule_id_str,
-                automate_context,
-                True,
-            )
+        # # For passing objects, only attach if we're showing all levels (INFO)
+        # if minimum_severity == MinimumSeverity.INFO:
+        #     attach_results(
+        #         pass_objects,
+        #         rule_group.iloc[-1],
+        #         rule_id_str,
+        #         True,
+        #     )
+
+        # # For failing objects, attach if they meet minimum severity threshold
+        # if len(fail_objects) and rule_severity_level >= min_severity_level:
+        #     attach_results(
+        #         fail_objects,
+        #         rule_group.iloc[-1],
+        #         rule_id_str,
+        #         False,
+        #     )
 
         # For failing objects, attach if they meet minimum severity threshold
         if len(fail_objects) and rule_severity_level >= min_severity_level:
-            attach_results(
+            add_comments(
                 fail_objects,
                 rule_group.iloc[-1],
                 rule_id_str,
-                automate_context,
                 False,
+                client,
+                project_id,
+                model_id,
+                my_version_id  
             )
 
         if (
@@ -338,13 +385,13 @@ def apply_rules_to_objects(
             newBase = Base()
             newBase.id = "123"
 
-            automate_context.attach_info_to_objects(
-                category=f"Rule {rule_id_str} Skipped",
-                affected_objects=[newBase],
-                # This is a hack to get a rule to report with no valid objects
-                message=f"No objects found for rule {rule_id_str}",
-                metadata={},
-            )
+            # automate_context.attach_info_to_objects(
+            #     category=f"Rule {rule_id_str} Skipped",
+            #     affected_objects=[newBase],
+            #     # This is a hack to get a rule to report with no valid objects
+            #     message=f"No objects found for rule {rule_id_str}",
+            #     metadata={},
+            # )
 
         grouped_results[rule_id_str] = (pass_objects, fail_objects)
 
@@ -491,21 +538,85 @@ def attach_results(
             if rule_info["Report Severity"].capitalize() in ["Warning", "Warn"]
             else ObjectResultLevel.ERROR
         )
-        context.attach_result_to_objects(
-            category=f"Rule {rule_id}",
-            affected_objects=speckle_objects,
-            message=message,
-            level=severity,
-            metadata=metadata,
-        )
+        # context.attach_result_to_objects(
+        #     category=f"Rule {rule_id}",
+        #     affected_objects=speckle_objects,
+        #     message=message,
+        #     level=severity,
+        #     metadata=metadata,
+        # )
     else:
-        context.attach_info_to_objects(
-            category=f"Rule {rule_id}",
-            affected_objects=speckle_objects,
-            message=message,
-            metadata=metadata,
-        )
+        pass
+        # context.attach_info_to_objects(
+        #     category=f"Rule {rule_id}",
+        #     affected_objects=speckle_objects,
+        #     message=message,
+        #     metadata=metadata,
+        # )
 
+
+def add_comments(
+    speckle_objects: list[Base],
+    rule_info: pd.Series,
+    rule_id: str,
+    passed: bool,
+    client,
+    project_id,
+    model_id,
+    my_version_id,    
+) -> None:
+    """Attaches rule results to objects in the Speckle Automate context.
+
+    This function is the interface to the Speckle platform for reporting
+    results:
+    - For failing objects, attaches results with appropriate severity levels
+    - For passing objects, attaches informational results
+    - Includes structured metadata for consistent reporting
+
+    Args:
+        speckle_objects: The list of objects affected by the rule
+        rule_info: Information about the rule
+        rule_id: Identifier for the rule
+        context: The Speckle Automate context for result attachment
+        passed: Whether the objects passed the rule
+    """
+    if not speckle_objects:
+        return
+
+    # Create structured metadata for onward data analysis uses
+
+    metadata = get_metadata(rule_id, rule_info, passed, speckle_objects)
+    message = format_message(rule_info)
+
+    if not passed:
+        speckle_print(rule_info["Report Severity"])
+
+        severity = (
+            ObjectResultLevel.WARNING
+            if rule_info["Report Severity"].capitalize() in ["Warning", "Warn"]
+            else ObjectResultLevel.ERROR
+        )
+        # context.attach_result_to_objects(
+        #     category=f"Rule {rule_id}",
+        #     affected_objects=speckle_objects,
+        #     message=message,
+        #     level=severity,
+        #     metadata=metadata,
+        # )
+        for obj in speckle_objects:
+            comment_creator = CommentCreator(client,project_id,model_id,my_version_id)
+            comment_creator.create_comment_for_object(
+                title=message + " for applicationId " + str(obj.applicationId) ,
+                object=obj
+            )        
+    else:
+        pass
+        # context.attach_info_to_objects(
+        #     category=f"Rule {rule_id}",
+        #     affected_objects=speckle_objects,
+        #     message=message,
+        #     metadata=metadata,
+        # )
 
 def format_message(rule_info):
     """Format the message for the rule result.
