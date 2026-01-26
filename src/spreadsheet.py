@@ -57,8 +57,8 @@ def process_rule_numbers(df: DataFrame) -> DataFrame:
     # Find indices where Logic is 'WHERE' to identify rule group starts
     where_indices = df[df["Logic"].str.upper() == "WHERE"].index
 
-    print("where_indices = " + str(where_indices))
-
+    df["Rule Number"] = None
+    rule_number = 0
     # Process each group
     for i in range(len(where_indices)):
         start_idx = where_indices[i]
@@ -66,8 +66,8 @@ def process_rule_numbers(df: DataFrame) -> DataFrame:
 
         # Get slice of rows for this group
         group_slice = df.iloc[start_idx:end_idx]
-
-        print("group_slice = " + str(group_slice))
+        group_slice["Rule Number"].iloc[0] = rule_number
+        rule_number += 1
 
         # Try to get rule number from first row, fall back to "Rule #"
         group_rule_num = (
@@ -152,18 +152,14 @@ def read_rules_from_spreadsheet(url: str) -> tuple[DataFrameGroupBy, list[str]] 
         - List of validation messages/warnings
     """
     try:
-        print("url = " + str(url))
         # Read the TSV file
         # The TSV format is chosen for compatibility with Google Sheets
         # and other spreadsheet applications
         df = pd.read_csv(url, sep=",")
-        df['Rule Number'] = np.nan
-        print(df)
 
         # Convert mixed type columns
         # This handles inconsistencies in spreadsheet data
         df = convert_mixed_columns(df)
-
         # Process rule numbers
         # This ensures all related conditions have the same rule number
         df = process_rule_numbers(df)

@@ -229,21 +229,6 @@ def process_rule(
             )
         ]
 
-        # print("look in objects")
-        # print("filter_condition = " + str(filter_condition))
-
-        # # for obj in filtered_objects:
-        # #     if "OBJECTS.DATA.DATAOBJECT" in obj.speckle_type.upper():
-        # #         if obj.properties["Layer"] == "Mechanical":
-        # #             print( "found one!!")
-
-        
-        # for obj in filtered_objects:
-        #     print(obj)
-        #     if "Mechanical" in obj.name:
-        #         print( "found one!!")
-
-
         # Early exit if no objects pass filters
         if not filtered_objects:
             return [], []
@@ -253,8 +238,6 @@ def process_rule(
     pass_objects = []
     fail_objects = []
 
-    print(final_check)
-
     for obj in filtered_objects:
         if evaluate_condition(
             speckle_object=obj,
@@ -262,12 +245,8 @@ def process_rule(
             rule_number=rule_number,
             case_number=len(filters),
         ):
-            # print(obj.properties['AutoCad']['Tag'])
-            # print("pass")
             pass_objects.append(obj)
         else:
-            # print(obj.properties['AutoCad']['Tag'])
-            # print("fail")
             fail_objects.append(obj)
 
     return pass_objects, fail_objects
@@ -312,8 +291,6 @@ def apply_rules_to_objects(
     min_severity_level = 2
 
     for rule_id, rule_group in grouped_rules:
-        print("rule_id = " + str(rule_id))
-        print("rule_group = " + str(rule_group))
         rule_id_str = str(rule_id)  # Convert rule_id to string
         rules_processed += 1
 
@@ -322,7 +299,6 @@ def apply_rules_to_objects(
             "Report Severity" not in rule_group.columns
             and "Severity" not in rule_group.columns
         ):
-            print("skip 1")
             continue  # Or raise an exception if these columns are mandatory
 
         # Get the severity level for this rule
@@ -334,15 +310,9 @@ def apply_rules_to_objects(
         # Check if the rule severity level meets the minimum severity level
         # no point in processing lower severity rules
         if rule_severity_level < min_severity_level:
-            print("skip 2")
             continue
 
-        print("process rule")
-        print(speckle_objects)
         pass_objects, fail_objects = process_rule(speckle_objects, rule_group)
-        # print("pass_objects= " + str(pass_objects))
-        # print("fail_objects= " + str(fail_objects))
-        
 
         # # For passing objects, only attach if we're showing all levels (INFO)
         # if minimum_severity == MinimumSeverity.INFO:
