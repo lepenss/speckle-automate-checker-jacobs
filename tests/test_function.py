@@ -8,9 +8,9 @@ from speckle_automate import (
 )
 from speckle_automate.fixtures import *  # noqa: F401, F403
 
-from src.speckle_automate_checker_jacobs.function import automate_function
-from src.speckle_automate_checker_jacobs.helpers import speckle_print
-from src.speckle_automate_checker_jacobs.inputs import FunctionInputs, MinimumSeverity
+from speckle_automate_checker_jacobs.function import automate_function
+from speckle_automate_checker_jacobs.helpers import speckle_print
+from speckle_automate_checker_jacobs.inputs import FunctionInputs, MinimumSeverity
 
 
 class TestFunction:

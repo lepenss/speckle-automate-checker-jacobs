@@ -3,8 +3,8 @@ from speckle_automate import (
 )
 
 
-from src.speckle_automate_checker_jacobs.function import automate_function
-from src.speckle_automate_checker_jacobs.inputs import FunctionInputs
+from speckle_automate_checker_jacobs.function import automate_function
+from speckle_automate_checker_jacobs.inputs import FunctionInputs
 
 
 # make sure to call the function with the executor

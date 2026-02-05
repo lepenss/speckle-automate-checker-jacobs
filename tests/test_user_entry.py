@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from src.speckle_automate_checker_jacobs.rule_processor import SeverityLevel, get_severity
+from speckle_automate_checker_jacobs.rule_processor import SeverityLevel, get_severity
 
 
 @pytest.mark.parametrize(

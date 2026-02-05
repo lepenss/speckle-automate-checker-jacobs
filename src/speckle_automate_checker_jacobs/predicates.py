@@ -1,6 +1,6 @@
 """Defines mappings between spreadsheet predicates and rule methods."""
 
-from src.speckle_automate_checker_jacobs.rules import PropertyRules
+from speckle_automate_checker_jacobs.rules import PropertyRules
 
 # Mapping of input predicates to the corresponding methods in PropertyRules
 PREDICATE_METHOD_MAP = {

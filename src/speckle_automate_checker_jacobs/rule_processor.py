@@ -21,10 +21,10 @@ from pandas.core.groupby import DataFrameGroupBy
 from speckle_automate import AutomationContext, ObjectResultLevel
 from specklepy.objects.base import Base
 
-from src.speckle_automate_checker_jacobs.helpers import speckle_print
-from src.speckle_automate_checker_jacobs.inputs import MinimumSeverity
-from src.speckle_automate_checker_jacobs.predicates import PREDICATE_METHOD_MAP
-from src.speckle_automate_checker_jacobs.rules import PropertyRules
+from speckle_automate_checker_jacobs.helpers import speckle_print
+from speckle_automate_checker_jacobs.inputs import MinimumSeverity
+from speckle_automate_checker_jacobs.predicates import PREDICATE_METHOD_MAP
+from speckle_automate_checker_jacobs.rules import PropertyRules
 
 from helpers import CommentCreator
 
