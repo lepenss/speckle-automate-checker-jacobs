@@ -1,3 +1,4 @@
+
 [project]
 name = "speckle-automate-checker"
 version = "3.0.0"
@@ -14,7 +15,6 @@ dependencies = [
   "specklepy>=3.0.0",
   "pydantic-settings>=2.7.1",
 ]
-
 
 [project.optional-dependencies]
 dev = [
@@ -48,11 +48,6 @@ docstring-code-line-length = 79
 
 [tool.ruff.isort]
 known-first-party = ["src"]
-
-
-[tool.ruff.lint.pydocstyle]
-convention = "google"
-
 
 [tool.setuptools]
 package-dir = {"" = "src"}
