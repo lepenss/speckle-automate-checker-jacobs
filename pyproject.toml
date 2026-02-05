@@ -1,5 +1,5 @@
 [project]
-name = "speckle-automate-checker"
+name = "speckle-automate-checker-jacobs"
 version = "3.0.0"
 description = "Allows for QAQC property checking with Speckle"
 authors = [{ name = "Jonathon Broughton", email = "jonathon@speckle.systems" }]
