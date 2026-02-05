@@ -49,9 +49,8 @@ docstring-code-line-length = 79
 [tool.ruff.isort]
 known-first-party = ["src"]
 
-
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
 [tool.setuptools]
-py-modules = []
+packages = ["model_checker"]
