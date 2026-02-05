@@ -21,10 +21,10 @@ from pandas.core.groupby import DataFrameGroupBy
 from speckle_automate import AutomationContext, ObjectResultLevel
 from specklepy.objects.base import Base
 
-from model_checker.helpers import speckle_print
-from model_checker.inputs import MinimumSeverity
-from model_checker.predicates import PREDICATE_METHOD_MAP
-from model_checker.rules import PropertyRules
+from src.speckle_automate_checker_jacobs.helpers import speckle_print
+from src.speckle_automate_checker_jacobs.inputs import MinimumSeverity
+from src.speckle_automate_checker_jacobs.predicates import PREDICATE_METHOD_MAP
+from src.speckle_automate_checker_jacobs.rules import PropertyRules
 
 from helpers import CommentCreator
 
@@ -135,7 +135,7 @@ def get_filters_and_check(
     """Separates rule conditions into filtering conditions and the final check condition.
 
     This function handles two rule formats:
-    1. Explicit format: WHERE + AND... + CHECK
+    1. Explicit format: WHERE + AND... + CHECKs
     2. Legacy format: WHERE + AND... (last AND is implicitly the check)
 
     This separation enables the "filter then validate" approach.

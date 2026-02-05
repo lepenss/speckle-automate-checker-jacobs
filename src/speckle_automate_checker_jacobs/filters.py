@@ -1,6 +1,6 @@
 from specklepy.objects.base import Base
 
-from model_checker.rules import PropertyRules
+from src.speckle_automate_checker_jacobs.rules import PropertyRules
 
 
 def filter_objects_by_category(speckle_objects: list[Base], category_input: str) -> tuple[list[Base], list[Base]]:

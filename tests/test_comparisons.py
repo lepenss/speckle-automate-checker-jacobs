@@ -2,7 +2,7 @@ from typing import Any
 
 import pytest
 
-from model_checker.rules import PropertyRules
+from src.speckle_automate_checker_jacobs.rules import PropertyRules
 
 
 class TestValueComparison:

@@ -3,7 +3,7 @@
 import pytest
 from specklepy.objects.base import Base
 
-from model_checker.rules import PropertyRules
+from src.speckle_automate_checker_jacobs.rules import PropertyRules
 
 
 class TestParameterHandling:

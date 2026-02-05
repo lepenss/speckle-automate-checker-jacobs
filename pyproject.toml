@@ -52,5 +52,5 @@ known-first-party = ["src"]
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
-[tool.setuptools]
-packages = ["model_checker"]
+[tool.setuptools.packages.find]
+where = ["src"]

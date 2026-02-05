@@ -17,10 +17,10 @@ This function implements a configurable rule-based validation system that:
 from speckle_automate import AutomationContext
 from specklepy.objects.base import Base
 
-from model_checker.helpers import flatten_base, speckle_print
-from model_checker.inputs import FunctionInputs
-from model_checker.rule_processor import apply_rules_to_objects
-from model_checker.spreadsheet import read_rules_from_spreadsheet
+from src.speckle_automate_checker_jacobs.helpers import flatten_base, speckle_print
+from src.speckle_automate_checker_jacobs.inputs import FunctionInputs
+from src.speckle_automate_checker_jacobs.rule_processor import apply_rules_to_objects
+from src.speckle_automate_checker_jacobs.spreadsheet import read_rules_from_spreadsheet
 
 VERSION: int = 2
 
