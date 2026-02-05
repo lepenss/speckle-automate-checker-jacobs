@@ -8,9 +8,9 @@ from speckle_automate import (
 )
 from speckle_automate.fixtures import *  # noqa: F401, F403
 
-from src.function import automate_function
-from src.helpers import speckle_print
-from src.inputs import FunctionInputs, MinimumSeverity
+from model_checker.function import automate_function
+from model_checker.helpers import speckle_print
+from model_checker.inputs import FunctionInputs, MinimumSeverity
 
 
 class TestFunction:

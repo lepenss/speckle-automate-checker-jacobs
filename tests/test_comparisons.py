@@ -2,7 +2,7 @@ from typing import Any
 
 import pytest
 
-from src.rules import PropertyRules
+from model_checker.rules import PropertyRules
 
 
 class TestValueComparison:

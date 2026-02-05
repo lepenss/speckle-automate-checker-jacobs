@@ -1,6 +1,6 @@
 """Defines mappings between spreadsheet predicates and rule methods."""
 
-from src.rules import PropertyRules
+from model_checker.rules import PropertyRules
 
 # Mapping of input predicates to the corresponding methods in PropertyRules
 PREDICATE_METHOD_MAP = {

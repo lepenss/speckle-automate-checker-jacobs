@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from src.rule_processor import SeverityLevel, get_severity
+from model_checker.rule_processor import SeverityLevel, get_severity
 
 
 @pytest.mark.parametrize(

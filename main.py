@@ -3,8 +3,8 @@ from speckle_automate import (
 )
 
 
-from src.function import automate_function
-from src.inputs import FunctionInputs
+from model_checker.function import automate_function
+from model_checker.inputs import FunctionInputs
 
 
 # make sure to call the function with the executor
