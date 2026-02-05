@@ -53,5 +53,9 @@ known-first-party = ["src"]
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
+
 [tool.setuptools]
-py-modules = []
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
