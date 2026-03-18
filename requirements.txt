@@ -1,7 +1,17 @@
-more-itertools>=10.6.0
-pandas>=2.2.3
-pydantic==2.10.6
-python-dotenv>=1.0.1
-python-levenshtein>=0.26.1
-specklepy>=3.0.0
-pydantic-settings>=2.7.1
+# Core dependencies for PandID Validation Speckle
+
+# Speckle SDK for working with Speckle objects and API
+specklepy>=2.18.0
+
+# String similarity for fuzzy matching in validation rules
+python-Levenshtein>=0.23.0
+
+# Data processing for reading and managing rules from spreadsheets
+pandas>=1.5.0
+numpy>=1.24.0
+
+# Data validation and settings management
+pydantic>=2.0.0
+
+# GraphQL client for API queries
+gql>=3.4.0

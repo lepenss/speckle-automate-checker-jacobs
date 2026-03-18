@@ -1,0 +1,22 @@
+Logic,Property Name,Predicate,Value,Message,Report Severity
+WHERE,name,equal to,Mechanical,,ERROR
+AND,AutoCad.Class,contains,Valve,,
+CHECK,AutoCad.Tag,does not contain,X,"Tag should not contain X",
+WHERE,name,equal to,Mechanical,,ERROR
+AND,AutoCad.Class,contains,Valve,,
+CHECK,AutoCad.Tag,does not contain, ,"Tag should not contain blank",
+WHERE,name,equal to,Mechanical,,ERROR
+AND,AutoCad.Class,contains,Valve,,
+CHECK,AutoCad.Tag,is unique in drawing,,"Duplicated tag",
+WHERE,name,equal to,Process,,ERROR
+AND,AutoCad.Class,contains,Primary Line Segment,,
+CHECK,AutoCad.Tag,is unique in project,,"Duplicated tag",
+WHERE,name,equal to,Mechanical,,ERROR
+AND,AutoCad.Class,contains,Valve,,
+CHECK,AutoCad.Size,matches parameter,AutoCad.LineSize,"Size should match LineSize",
+WHERE,name,equal to,Mechanical,,ERROR
+AND,AutoCad.Class,contains,Valve,,
+CHECK,AutoCad.Tag,matches parameter-based standard,{AutoCad.Code}-{AutoCad.Number},"Tag should follow standard Code-Number",
+WHERE,name,equal to,Mechanical,,ERROR
+AND,AutoCad.Class,contains,Valve,,
+CHECK,AutoCad.Class-AutoCad.Symbol_Name,matches database,rules/rules_sample_project/symbols_database.csv,"symbol should match database",

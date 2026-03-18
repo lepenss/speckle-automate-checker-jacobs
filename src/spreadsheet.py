@@ -26,6 +26,7 @@ import pandas as pd
 from pandas import DataFrame
 from pandas.core.groupby import DataFrameGroupBy
 
+import numpy as np
 
 def process_rule_numbers(df: DataFrame) -> DataFrame:
     """Process rule numbers in a DataFrame while preserving original rule identifiers.
@@ -56,34 +57,36 @@ def process_rule_numbers(df: DataFrame) -> DataFrame:
     # Find indices where Logic is 'WHERE' to identify rule group starts
     where_indices = df[df["Logic"].str.upper() == "WHERE"].index
 
+    df["Rule Number"] = None
+    rule_number = 0
     # Process each group
     for i in range(len(where_indices)):
         start_idx = where_indices[i]
         end_idx = where_indices[i + 1] if i + 1 < len(where_indices) else len(df)
 
-        # Get slice of rows for this group
-        group_slice = df.iloc[start_idx:end_idx]
+        # Compute group length and assign the temporary sequential number in-place
+        length = end_idx - start_idx
 
-        # Try to get rule number from first row, fall back to "Rule #"
-        group_rule_num = (
-            group_slice["Rule Number"].iloc[0] if not pd.isna(group_slice["Rule Number"].iloc[0]) else "Rule #"
-        )
+        # Assign the sequential rule_number to the first row of the group using .loc
+        df.loc[start_idx, "Rule Number"] = rule_number
+        rule_number += 1
 
+        # Determine the group identifier from the dataframe in-place (no chained assignment)
+        group_rule_num = df.loc[start_idx, "Rule Number"]
+
+        # If the value is missing, generate the next available number
         if pd.isna(group_rule_num):
-            # If no rule number, generate next available number
             while str(next_auto_num) in used_rule_nums:
                 next_auto_num += 1
             group_rule_num = str(next_auto_num)
             next_auto_num += 1
         else:
-            # Keep the original rule number exactly as is
             group_rule_num = str(group_rule_num)
 
-        # Update tracking
         used_rule_nums.add(group_rule_num)
 
-        # Fill rule numbers for this group
-        processed_rule_nums.extend([group_rule_num] * len(group_slice))
+        # Fill rule numbers for this group (extend by computed length)
+        processed_rule_nums.extend([group_rule_num] * length)
 
     # Update DataFrame with processed rule numbers
     df["Rule Number"] = processed_rule_nums
@@ -150,12 +153,11 @@ def read_rules_from_spreadsheet(url: str) -> tuple[DataFrameGroupBy, list[str]] 
         # Read the TSV file
         # The TSV format is chosen for compatibility with Google Sheets
         # and other spreadsheet applications
-        df = pd.read_csv(url, sep="\t")
+        df = pd.read_csv(url, sep=",")
 
         # Convert mixed type columns
         # This handles inconsistencies in spreadsheet data
         df = convert_mixed_columns(df)
-
         # Process rule numbers
         # This ensures all related conditions have the same rule number
         df = process_rule_numbers(df)
@@ -163,7 +165,7 @@ def read_rules_from_spreadsheet(url: str) -> tuple[DataFrameGroupBy, list[str]] 
         # Get validation messages
         # These are warnings about potential issues with the rules
         messages = validate_rule_numbers(df)
-
+        
         # Group by rule number
         # This creates a DataFrameGroupBy object that groups related conditions
         grouped_rules = df.groupby("Rule Number")

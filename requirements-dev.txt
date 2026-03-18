@@ -1,23 +1,16 @@
-argcomplete==3.6.2
-click==8.1.8
-colorama==0.4.6
-coverage==7.8.2
-flake8==7.2.0
-iniconfig==2.1.0
-isort==6.0.1
-mccabe==0.7.0
-mypy_extensions==1.1.0
-packaging==24.2
-pathspec==0.12.1
-pipx==1.7.1
-platformdirs==4.3.7
-pluggy==1.6.0
-pycodestyle==2.13.0
-pyflakes==3.3.2
-Pygments==2.19.1
-pytest>=8.3.4
-pytest-assertcount>=1.0.0
-pytest-cov==6.1.1
-ruff==0.11.12
-userpath==1.9.2
-mypy>=1.15.0
+# Development and testing dependencies for PandID Validation Speckle
+
+# Include all production dependencies
+-r requirements.txt
+
+# Testing frameworks
+pytest>=7.4.0
+pytest-mock>=3.11.0
+
+# Code quality and linting (optional but recommended)
+black>=23.7.0
+flake8>=6.0.0
+mypy>=1.4.0
+
+# Code coverage reporting
+pytest-cov>=4.1.0

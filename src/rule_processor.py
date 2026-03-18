@@ -13,6 +13,7 @@ The rule processing follows a "filter then validate" approach:
 """
 
 import json
+import os
 from enum import Enum
 from typing import Any
 
@@ -23,9 +24,13 @@ from specklepy.objects.base import Base
 
 from src.helpers import speckle_print
 from src.inputs import MinimumSeverity
-from src.predicates import PREDICATE_METHOD_MAP
+from src.predicates_object import PREDICATE_OBJECT_METHOD_MAP
+from src.predicates_drawing import PREDICATE_DRAWING_METHOD_MAP
+from src.predicates_project import PREDICATE_PROJECT_METHOD_MAP
 from src.rules import PropertyRules
 
+from helpers import CommentCreator
+from helpers.speckle_object import SpeckleObject
 
 def validate_rule_structure(rule_group: pd.DataFrame) -> None:
     """Validates the structure and logic of a rule group.
@@ -76,9 +81,28 @@ def validate_rule_structure(rule_group: pd.DataFrame) -> None:
     invalid_values = set(logic_values.unique()) - valid_values
     if invalid_values:
         raise ValueError(f"Invalid Logic values found: {invalid_values}")
+    
+    # Validate Predicate column exists and values are known
+    if "Predicate" not in rule_group.columns:
+        raise ValueError("Rule must have a 'Predicate' column")
+
+    # Collect any invalid predicates (ignore empty/NaN entries)
+    predicates = [p for p in rule_group["Predicate"].dropna().unique()]
+    invalid_predicates = [p for p in predicates if not validate_predicate_key(p)]
+    if invalid_predicates:
+        raise ValueError(f"Invalid Predicate values found: {invalid_predicates}")
+
+    for _, condition in rule_group.iterrows():
+        predicate_key = condition["Predicate"]
+        value = condition["Value"]
+        if predicate_key == "matches database":
+            if os.path.isfile(value):
+                continue
+            else:
+                raise ValueError(f"Predicate 'matches database' value must be a valid csv file path: {value}")
 
 
-def evaluate_condition(
+def evaluate_condition_object(
     speckle_object: Base,
     condition: pd.Series,
     rule_number: str | None = None,
@@ -117,8 +141,8 @@ def evaluate_condition(
 
     # Look up the method name in the predicate map
     # This map connects spreadsheet predicates to PropertyRules methods
-    if predicate_key in PREDICATE_METHOD_MAP:
-        method_name = PREDICATE_METHOD_MAP[predicate_key]
+    if predicate_key in PREDICATE_OBJECT_METHOD_MAP:
+        method_name = PREDICATE_OBJECT_METHOD_MAP[predicate_key]
         method = getattr(PropertyRules, method_name, None)
 
         if method:
@@ -127,6 +151,60 @@ def evaluate_condition(
 
     return False
 
+def evaluate_condition_list_of_objects(
+    list_speckle_objects: list[SpeckleObject],
+    condition: pd.Series,
+    rule_number: str | None = None,
+    case_number: int | None = None,
+) -> bool:
+    """Evaluates a single condition against a list of Speckle objects.
+
+    This function is the bridge between the rules defined in the spreadsheet
+    and the property checking methods in PropertyRules. It:
+    1. Extracts the property name, predicate, and value from the condition
+    2. Maps the predicate to the corresponding method in PropertyRules
+    3. Calls the method with the object, property name, and value
+
+    Args:
+        speckle_object: The Speckle object to evaluate against
+        condition: A pandas Series containing the condition details
+            - 'Property Name': The name of the property to check
+            - 'Predicate': The comparison operation (like 'equals',
+                           'greater than')
+            - 'Value': The value to compare against
+        rule_number: For tracking, the rule number being evaluated
+        case_number: For tracking, the condition number within the rule
+
+    Returns:
+        True if the condition is met, False otherwise
+    """
+    property_name = condition.get(
+        "Property Name", condition.get("Property Path")
+    )
+    predicate_key = condition["Predicate"]
+    value = condition["Value"]
+
+    # Debugging info
+    _ = rule_number
+    _ = case_number
+
+    # Look up the method name in the predicate map
+    # This map connects spreadsheet predicates to PropertyRules methods
+    if predicate_key in PREDICATE_DRAWING_METHOD_MAP:
+        method_name = PREDICATE_DRAWING_METHOD_MAP[predicate_key]
+        method = getattr(PropertyRules, method_name, None)
+        if method:
+            # Call the method with the object, property name, and value
+            return method(list_speckle_objects, property_name, value)
+    elif predicate_key in PREDICATE_PROJECT_METHOD_MAP:
+        method_name = PREDICATE_PROJECT_METHOD_MAP[predicate_key]
+        method = getattr(PropertyRules, method_name, None)
+        if method:
+            # Call the method with the object, property name, and value
+            return method(list_speckle_objects, property_name, value)
+
+    return list_speckle_objects,[]
+
 
 def get_filters_and_check(
     rule_group: pd.DataFrame,
@@ -134,7 +212,7 @@ def get_filters_and_check(
     """Separates rule conditions into filtering conditions and the final check condition.
 
     This function handles two rule formats:
-    1. Explicit format: WHERE + AND... + CHECK
+    1. Explicit format: WHERE + AND... + CHECKs
     2. Legacy format: WHERE + AND... (last AND is implicitly the check)
 
     This separation enables the "filter then validate" approach.
@@ -178,10 +256,28 @@ def get_filters_and_check(
 
     return filters, final_check
 
+def validate_predicate_key(predicate_key: str) -> bool:
+    """Validates if the predicate key exists in any of the predicate maps.
+
+    This function checks if the given predicate key is defined in either the
+    object-level, drawing-level, or project-level predicate maps. This ensures
+    that all predicates used in the rules are recognized and can be evaluated.
+
+    Args:
+        predicate_key: The predicate key to validate
+
+    Returns:
+        True if the predicate key is valid, False otherwise
+    """
+    return (
+        predicate_key in PREDICATE_OBJECT_METHOD_MAP or
+        predicate_key in PREDICATE_DRAWING_METHOD_MAP or
+        predicate_key in PREDICATE_PROJECT_METHOD_MAP
+    )
 
 def process_rule(
-    speckle_objects: list[Base], rule_group: pd.DataFrame
-) -> tuple[list[Any], list[Any]] | tuple[list[Base], list[Base]]:
+    speckle_objects: list[SpeckleObject], rule_group: pd.DataFrame, project_wide: bool = False
+) -> tuple[list[Any], list[Any]] | tuple[list[SpeckleObject], list[SpeckleObject]]:
     """Processes a rule group against a list of Speckle objects.
 
     This function implements the "filter then validate" approach:
@@ -216,16 +312,19 @@ def process_rule(
 
     #  Apply each filter condition sequentially
     for index, (_, filter_condition) in enumerate(filters.iterrows()):
-        filtered_objects = [
-            obj
-            for obj in filtered_objects
-            if evaluate_condition(
-                speckle_object=obj,
-                condition=filter_condition,
-                rule_number=rule_number,
-                case_number=index,
-            )
-        ]
+        predicate_key = filter_condition["Predicate"]
+        if predicate_key in PREDICATE_OBJECT_METHOD_MAP:
+            # per object check: filter pairs then unzip
+            filtered_objects = [
+                obj
+                for obj in filtered_objects
+                if evaluate_condition_object(
+                    speckle_object=obj.object,
+                    condition=filter_condition,
+                    rule_number=rule_number,    
+                    case_number=index,
+                )
+            ]
 
         # Early exit if no objects pass filters
         if not filtered_objects:
@@ -236,27 +335,48 @@ def process_rule(
     pass_objects = []
     fail_objects = []
 
-    for obj in filtered_objects:
-        if evaluate_condition(
-            speckle_object=obj,
-            condition=final_check,
-            rule_number=rule_number,
-            case_number=len(filters),
-        ):
-            pass_objects.append(obj)
-        else:
-            fail_objects.append(obj)
+    predicate_key = final_check["Predicate"]
+    if predicate_key in PREDICATE_OBJECT_METHOD_MAP and not project_wide:
+        for obj in filtered_objects:
+            if evaluate_condition_object(
+                speckle_object=obj.object,
+                condition=final_check,
+                rule_number=rule_number,
+                case_number=len(filters),
+            ):
+                pass_objects.append(obj)
+            else:
+                fail_objects.append(obj)
+    elif predicate_key in PREDICATE_PROJECT_METHOD_MAP and project_wide:
+        # project level check - applies to whole model, not individual objects
+        pass_objects, fail_objects = evaluate_condition_list_of_objects(
+        list_speckle_objects=filtered_objects,
+        condition=final_check,
+        rule_number=rule_number,
+        case_number=len(filters),
+        )
+    elif predicate_key in PREDICATE_DRAWING_METHOD_MAP and not project_wide:
+        # drawing level check - applies to list of objects
+        pass_objects, fail_objects = evaluate_condition_list_of_objects(
+        list_speckle_objects=filtered_objects,
+        condition=final_check,
+        rule_number=rule_number,
+        case_number=len(filters),
+        )
 
     return pass_objects, fail_objects
 
 
 def apply_rules_to_objects(
-    speckle_objects: list[Base],
+    speckle_objects: list[SpeckleObject],
     grouped_rules: DataFrameGroupBy,
-    automate_context: AutomationContext,
-    minimum_severity: MinimumSeverity = MinimumSeverity.INFO,
+    client,
+    project_id,
+    my_version_id,    
+    minimum_severity: MinimumSeverity = MinimumSeverity.ERROR,
     hide_skipped: bool = False,
-) -> dict[str, tuple[list[Base], list[Base]]]:
+    project_wide: bool = False,
+):
     """Applies rules to objects and updates the automate context results.
 
     This is the main orchestration function that:
@@ -275,7 +395,6 @@ def apply_rules_to_objects(
     Returns:
         Dictionary mapping rule IDs to (pass_objects, fail_objects) tuples
     """
-    grouped_results = {}
     rules_processed = 0
     severity_levels = {
         MinimumSeverity.INFO: 0,
@@ -283,6 +402,7 @@ def apply_rules_to_objects(
         MinimumSeverity.ERROR: 2,
     }
     min_severity_level = severity_levels[minimum_severity]
+    min_severity_level = 2
 
     for rule_id, rule_group in grouped_rules:
         rule_id_str = str(rule_id)  # Convert rule_id to string
@@ -306,26 +426,18 @@ def apply_rules_to_objects(
         if rule_severity_level < min_severity_level:
             continue
 
-        pass_objects, fail_objects = process_rule(speckle_objects, rule_group)
-
-        # For passing objects, only attach if we're showing all levels (INFO)
-        if minimum_severity == MinimumSeverity.INFO:
-            attach_results(
-                pass_objects,
-                rule_group.iloc[-1],
-                rule_id_str,
-                automate_context,
-                True,
-            )
+        pass_objects, fail_objects = process_rule(speckle_objects, rule_group, project_wide=project_wide)
 
         # For failing objects, attach if they meet minimum severity threshold
         if len(fail_objects) and rule_severity_level >= min_severity_level:
-            attach_results(
+            add_comments(
                 fail_objects,
                 rule_group.iloc[-1],
                 rule_id_str,
-                automate_context,
                 False,
+                client,
+                project_id,
+                my_version_id  
             )
 
         if (
@@ -334,22 +446,6 @@ def apply_rules_to_objects(
             and not hide_skipped
         ):
             speckle_print(f"Rule {rule_id_str} Skipped")
-
-            newBase = Base()
-            newBase.id = "123"
-
-            automate_context.attach_info_to_objects(
-                category=f"Rule {rule_id_str} Skipped",
-                affected_objects=[newBase],
-                # This is a hack to get a rule to report with no valid objects
-                message=f"No objects found for rule {rule_id_str}",
-                metadata={},
-            )
-
-        grouped_results[rule_id_str] = (pass_objects, fail_objects)
-
-    # return pass_objects, fail_objects for each rule
-    return grouped_results
 
 
 class SeverityLevel(Enum):
@@ -411,54 +507,14 @@ def get_severity(rule_info: pd.Series) -> SeverityLevel:
     )
 
 
-def get_metadata(
-    rule_id: str,
-    rule_info: pd.Series,
-    passed: bool,
-    speckle_objects: list[Base],
-) -> dict[str, str | int | Any]:
-    """Generates structured metadata for rule results.
-
-    This metadata is attached to objects in the Speckle platform and is:
-    1. Validated for JSON serializability
-    2. Structured for consistent representation
-    3. Includes key information about the rule and results
-
-    Args:
-        rule_id: Identifier for the rule
-        rule_info: Series containing rule information
-        passed: Boolean indicating if the rule passed
-        speckle_objects: List of Speckle objects affected
-
-    Returns:
-        Dictionary containing metadata if valid JSON serializable,
-          empty dict otherwise
-    """
-    try:
-        metadata = {
-            "rule_id": rule_id,
-            "status": "PASS" if passed else "FAIL",
-            "severity": get_severity(rule_info).value,
-            "rule_message": format_message(rule_info),
-            "object_count": len(speckle_objects),
-        }
-
-        # Validate JSON serializability
-        json.dumps(metadata)
-        return metadata
-
-    except (TypeError, ValueError, json.JSONDecodeError) as e:
-        # Log the error for debugging purposes
-        print(f"Error creating metadata: {str(e)}")
-        return {}
-
-
-def attach_results(
-    speckle_objects: list[Base],
+def add_comments(
+    speckle_objects: list[SpeckleObject],
     rule_info: pd.Series,
     rule_id: str,
-    context: AutomationContext,
     passed: bool,
+    client,
+    project_id,
+    my_version_id,    
 ) -> None:
     """Attaches rule results to objects in the Speckle Automate context.
 
@@ -477,35 +533,42 @@ def attach_results(
     """
     if not speckle_objects:
         return
-
-    # Create structured metadata for onward data analysis uses
-
-    metadata = get_metadata(rule_id, rule_info, passed, speckle_objects)
+    
     message = format_message(rule_info)
 
     if not passed:
         speckle_print(rule_info["Report Severity"])
 
-        severity = (
-            ObjectResultLevel.WARNING
-            if rule_info["Report Severity"].capitalize() in ["Warning", "Warn"]
-            else ObjectResultLevel.ERROR
-        )
-        context.attach_result_to_objects(
-            category=f"Rule {rule_id}",
-            affected_objects=speckle_objects,
-            message=message,
-            level=severity,
-            metadata=metadata,
-        )
-    else:
-        context.attach_info_to_objects(
-            category=f"Rule {rule_id}",
-            affected_objects=speckle_objects,
-            message=message,
-            metadata=metadata,
-        )
+        for obj in speckle_objects:
+            if isinstance(obj, list):
+                application_ids = ", ".join([str(o.object.applicationId) for o in obj if hasattr(o.object, "applicationId")])
+                list_model_ids = []
+                for o in obj:
+                    application_ids = str(o.object.applicationId) if hasattr(o.object, "applicationId") else "N/A"
+                    model_id = o.model_id if hasattr(o, "model_id") else "N/A"
+                    if model_id not in list_model_ids: # only one comment per model, even if multiple objects in the list share the same model_id
+                        list_model_ids.append(model_id)
+                        my_version_id = o.version_id if hasattr(o, "version_id") else "N/A"
+                        object_msg = o.message if hasattr(o, "message") else ""
+                        comment_creator = CommentCreator(client,project_id,model_id,my_version_id)
+                        comment_creator.create_comment_for_object(
+                            title=message + " for applicationId " + application_ids + f" - {object_msg}",
+                            speckle_obj=obj
+                        )        
+            else:
+                application_ids = str(obj.object.applicationId) if hasattr(obj.object, "applicationId") else "N/A"
+                model_id = obj.model_id if hasattr(obj, "model_id") else "N/A"
+                my_version_id = obj.version_id if hasattr(obj, "version_id") else "N/A"
+                object = obj
+                object_msg = object.message if hasattr(object, "message") else ""
 
+                comment_creator = CommentCreator(client,project_id,model_id,my_version_id)
+                comment_creator.create_comment_for_object(
+                    title=message + " for applicationId " + application_ids + f" - {object_msg}",
+                    speckle_obj=obj
+                )        
+    else:
+        pass
 
 def format_message(rule_info):
     """Format the message for the rule result.
