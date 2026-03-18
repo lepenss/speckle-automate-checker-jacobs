@@ -29,7 +29,7 @@ from src.predicates_drawing import PREDICATE_DRAWING_METHOD_MAP
 from src.predicates_project import PREDICATE_PROJECT_METHOD_MAP
 from src.rules import PropertyRules
 
-from helpers import CommentCreator
+from helpers.comment_creator import CommentCreator
 from helpers.speckle_object import SpeckleObject
 
 def validate_rule_structure(rule_group: pd.DataFrame) -> None:

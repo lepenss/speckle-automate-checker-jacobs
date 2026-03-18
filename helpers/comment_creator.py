@@ -3,7 +3,7 @@
 from gql import gql
 from specklepy.objects.base import Base
 from helpers.speckle_object import SpeckleObject
-from helpers import get_mesh_centroid
+from helpers.geometry import get_mesh_centroid
 
 class CommentCreator:
     """Creates issues in Speckle projects with 3D viewer state."""
