@@ -1,4 +1,4 @@
-"""Issue creator for Speckle projects."""
+"""Comment creator for Speckle projects."""
 
 from gql import gql
 from specklepy.objects.base import Base
@@ -6,7 +6,7 @@ from helpers.speckle_object import SpeckleObject
 from helpers.geometry import get_mesh_centroid
 
 class CommentCreator:
-    """Creates issues in Speckle projects with 3D viewer state."""
+    """Creates comments in Speckle projects with 3D viewer state."""
 
     # 1x1 transparent PNG as placeholder screenshot
     DEFAULT_SCREENSHOT = (
