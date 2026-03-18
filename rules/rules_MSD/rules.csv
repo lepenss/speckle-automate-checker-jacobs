@@ -1,0 +1,15 @@
+Logic,Property Name,Predicate,Value,Message,Report Severity
+WHERE,AutoCad.Class,contains,Valve,,ERROR
+CHECK,AutoCad.Tag,does not contain,X,"Tag should not contain X",
+WHERE,AutoCad.Class,contains,Valve,,ERROR
+CHECK,AutoCad.Tag,does not contain, ,"Tag should not contain blank",
+WHERE,AutoCad.Class,contains,Valve,,ERROR
+CHECK,AutoCad.Tag,is unique in drawing,,"Duplicated tag in drawing",
+WHERE,AutoCad.Class,equal to,Primary Line - New,,ERROR
+CHECK,AutoCad.Tag,is unique in project,,"Duplicated tag in project",
+WHERE,AutoCad.Class,in list,"DCS Panel Mounted Front,On_Off_Valve,VacuumReliefValve,Modulating_Gate_Valve,Modulating Diaphragm Valve,Modulating Ball Valve",,ERROR
+CHECK,AutoCad.Tag,matches parameter-based standard,{AutoCad.Type}-{AutoCad.Number},"Tag should follow standard Autocad.Type-Autocad.Number",
+WHERE,AutoCad.Class,in list,"Ball Valve,Check Valve,Diaphragm Valve,Globe Valve",ERROR
+CHECK,AutoCad.Tag,matches parameter-based standard,{AutoCad.Code}-{AutoCad.Number},"Tag should follow standard Autocad.Code-Autocad.Number",
+WHERE,AutoCad.Class,contains,Valve,,ERROR
+CHECK,AutoCad.Class-AutoCad.Symbol_Name,matches database,rules/rules_MSD/symbols_database.csv,"symbol should match database",

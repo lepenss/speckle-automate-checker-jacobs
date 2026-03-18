@@ -1,0 +1,10 @@
+"AutoCad.Class","AutoCad.Symbol_Name"
+Check Valve,CHKV
+Ball Valve,BV
+Diaphragm Valve,DV
+On_Off_Valve,"DVONOFF,BVONOFF"
+VacuumReliefValve,PRV
+Modulating_Gate_Valve,GVDIA
+Globe Valve,GLV
+Modulating Diaphragm Valve,DVDIA
+Modulating Ball Valve,BVDIA

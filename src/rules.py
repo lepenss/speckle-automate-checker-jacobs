@@ -14,9 +14,12 @@ they are nested within a more complex 'properties.Parameters' structure with cat
 import math
 import re
 from typing import Any
+import pandas as pd
 
 from Levenshtein import ratio
 from specklepy.objects.base import Base
+
+from helpers.speckle_object import SpeckleObject
 
 PRIMITIVE_TYPES = (bool, int, float, str, type(None))
 
@@ -122,6 +125,219 @@ class PropertyRules:
     """
 
     @staticmethod
+    def is_unique_in_project(
+        list_speckle_objects: list[SpeckleObject], parameter_name: str, value: Any = None, 
+    ) -> tuple[list[SpeckleObject], list[list[SpeckleObject]]]:
+        """Group objects by the parameter value and identify duplicates.
+
+        This implementation is a single-pass, O(n) algorithm that builds a
+        mapping from normalized parameter value -> list of objects sharing
+        that value. It then returns two things:
+        - a list of objects that have unique values (one object per value)
+        - a list of lists where each inner list contains objects that share
+          a duplicated value (groups of length > 1)
+
+        Args:
+            list_speckle_objects: The list of Speckle objects to check
+            parameter_name: The name/path of the parameter to check for uniqueness
+            value: (unused) kept for backwards compatibility with callers
+
+        Returns:
+            (passed_objects, duplicate_groups)
+        """
+
+        from collections import defaultdict
+
+        # Map normalized parameter value -> list[Base]
+        groups: dict[Any, list[Base]] = defaultdict(list)
+
+        for obj in list_speckle_objects:
+            raw = PropertyRules.get_parameter_value(obj.object, parameter_name)
+            # Normalize key: treat None specially, otherwise use stripped string
+            if raw is None:
+                key = None
+            else:
+                key = str(raw).strip("?")
+            groups[key].append(obj)
+
+        # Objects with unique values (group size == 1)
+        passed_objects = [objs[0] for objs in groups.values() if len(objs) == 1]
+
+        # Groups of duplicates (each inner list contains the duplicate objects)
+        duplicate_groups = [objs for objs in groups.values() if len(objs) > 1]
+
+        for group in duplicate_groups:
+            list_model_ids = set(obj.model_id for obj in group)
+            list_model_names = set(obj.model_name for obj in group)
+            for obj in group:
+                obj.message = f"{parameter_name}: {PropertyRules.get_parameter_value(obj.object, parameter_name)} (shared with {len(group)-1} objects across models: {', '.join(list_model_names)})"
+
+
+        return passed_objects, duplicate_groups 
+
+    @staticmethod
+    def is_unique_in_drawing(
+        list_speckle_objects: list[SpeckleObject], property_name: str, value: Any = None,
+    ) -> tuple[list[SpeckleObject], list[list[SpeckleObject]]]:
+        """Group objects by the parameter value and identify duplicates.
+
+        This implementation is a single-pass, O(n) algorithm that builds a
+        mapping from normalized parameter value -> list of objects sharing
+        that value. It then returns two things:
+        - a list of objects that have unique values (one object per value)
+        - a list of lists where each inner list contains objects that share
+          a duplicated value (groups of length > 1)
+
+        Args:
+            list_speckle_objects: The list of Speckle objects to check
+            property_name: The name/path of the property to check for uniqueness
+            value: (unused) kept for backwards compatibility with callers
+
+        Returns:
+            (passed_objects, duplicate_groups)
+        """
+
+        from collections import defaultdict
+
+        # Map normalized parameter value -> list[Base]
+        groups: dict[Any, list[Base]] = defaultdict(list)
+
+        for obj in list_speckle_objects:
+            raw = PropertyRules.get_parameter_value(obj.object, property_name)
+            obj.message = f"{property_name}: {raw}"
+            # Normalize key: treat None specially, otherwise use stripped string
+            if raw is None:
+                key = None
+            else:
+                key = str(raw).strip("?")
+            groups[key].append(obj)
+
+        # Objects with unique values (group size == 1)
+        passed_objects = [objs[0] for objs in groups.values() if len(objs) == 1]
+
+        # Groups of duplicates (each inner list contains the duplicate objects)
+        duplicate_groups = [objs for objs in groups.values() if len(objs) > 1]
+
+        return passed_objects, duplicate_groups
+
+    @staticmethod
+    def does_parameter_value_match_database(speckle_object: Base, parameter_names: str, database_path: str) -> bool:
+        """Checks if the value of a parameter matches a database value.
+
+        Args:
+            speckle_object: The Speckle object to check
+            parameter_names: Dash-separated names of two parameters to check
+            database_path: Path to the CSV database file
+
+        Returns:
+            True if parameter_value_2 is in the list of database values, or matches a single value, False otherwise
+        """
+        parameter_name_1 = parameter_names.split("-")[0].strip()
+        parameter_name_2 = parameter_names.split("-")[1].strip()
+        parameter_value_1 = PropertyRules.get_parameter_value(speckle_object, parameter_name_1)
+        parameter_value_2 = PropertyRules.get_parameter_value(speckle_object, parameter_name_2)
+
+        # Load the database CSV
+        try:
+            df = pd.read_csv(database_path)
+        except (FileNotFoundError, pd.errors.ParserError):
+            return False
+
+        # Find row where parameter_name_1 column matches parameter_value_1
+        matching_rows = df[df[parameter_name_1] == parameter_value_1]
+        
+        if matching_rows.empty:
+            return False
+
+        # Get the corresponding value(s) from parameter_name_2 column in the matching row
+        database_value = matching_rows.iloc[0][parameter_name_2]
+
+        # Check if parameter_value_2 is in the database value (handles both single values and lists)
+        if parameter_value_2 is None:
+            return False
+        
+        # If database_value is a list or comma-separated string, check if parameter_value_2 is in it
+        if isinstance(database_value, str):
+            # Handle comma-separated values
+            db_values = [v.strip() for v in database_value.split(",")]
+            return str(parameter_value_2).strip() in db_values
+        elif isinstance(database_value, list):
+            return parameter_value_2 in database_value
+        else:
+            # Single value comparison
+            return database_value == parameter_value_2 
+
+
+    @staticmethod
+    def does_parameter_value_match_parameter_based_standard(
+        speckle_object: Base, parameter_name: str, parameter_based_standard: str
+    ) -> bool:
+        """Checks if the value of a parameter matches a regex pattern defined based on parameters values.
+
+        This predicate allows for dynamic regex patterns that are stored in the object itself.
+        It retrieves the value of the first parameter and checks if it matches the regex pattern
+        specified in the second parameter.
+
+        Args:
+            speckle_object: The Speckle object to check
+            parameter_name: The name/path of the parameter whose value is to be checked
+            parameter_based_regex: The regex pattern defined based on parameter values
+        Returns:True if the parameter value matches the regex pattern, False otherwise """ 
+        
+        parameter_value = PropertyRules.get_parameter_value(speckle_object, parameter_name)
+        list_standard_params = re.findall(r"\{(.*?)\}", parameter_based_standard)
+        list_standard_params_value = []
+        for standard_param in list_standard_params: 
+            standard_param_value = PropertyRules.get_parameter_value(speckle_object, standard_param)
+            list_standard_params_value.append(standard_param_value)
+
+        expression_to_match = parameter_based_standard
+        for i, standard_param in enumerate(list_standard_params):
+            expression_to_match = expression_to_match.replace(f"{{{standard_param}}}", str(list_standard_params_value[i]))
+
+        return parameter_value == expression_to_match 
+
+    @staticmethod    
+    def does_parameter_value_match_parameter(speckle_object: Base, parameter_name: str, other_parameter_name: str) -> bool:
+        """Checks if the value of one parameter matches the value of another parameter.
+
+        This predicate allows for direct comparison between two parameters on the same object.
+        It retrieves both parameter values and checks for equality.
+
+        Args:
+            speckle_object: The Speckle object to check
+            parameter_name: The name/path of the first parameter
+            other_parameter_name: The name/path of the second parameter to compare against      
+
+        Returns:
+            True if the values of both parameters match, False otherwise
+        """
+        value1 = PropertyRules.get_parameter_value(speckle_object, parameter_name)
+        value2 = PropertyRules.get_parameter_value(speckle_object, other_parameter_name)
+        return value1 == value2
+
+
+    @staticmethod    
+    def does_parameter_value_not_match_parameter(speckle_object: Base, parameter_name: str, other_parameter_name: str) -> bool:
+        """Checks if the value of one parameter does NOT match the value of another parameter.
+
+        This predicate allows for direct comparison between two parameters on the same object.
+        It retrieves both parameter values and checks for inequality.
+
+        Args:
+            speckle_object: The Speckle object to check
+            parameter_name: The name/path of the first parameter
+            other_parameter_name: The name/path of the second parameter to compare against      
+
+        Returns:
+            True if the values of both parameters do NOT match, False otherwise
+        """
+        value1 = PropertyRules.get_parameter_value(speckle_object, parameter_name)
+        value2 = PropertyRules.get_parameter_value(speckle_object, other_parameter_name)
+        return value1 != value2
+
+
+    @staticmethod
     def is_parameter_value_not_containing(speckle_object: Base, parameter_name: str, substring: str) -> bool:
         """Checks if parameter value does not contain the given substring.
 
@@ -156,6 +372,8 @@ class PropertyRules:
         parameter_value = PropertyRules.get_parameter_value(speckle_object, parameter_name)
         if parameter_value is None:
             return False
+
+        speckle_object.message = f"{parameter_name}: {PropertyRules.get_parameter_value(speckle_object, parameter_name)} does not contain {substring}"
 
         # Convert both to strings for comparison
         try:
